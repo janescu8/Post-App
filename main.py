@@ -48,7 +48,7 @@ with st.form("post_form"):
                   (content, st.session_state.username, timestamp, 0, json.dumps([])))
         conn.commit()
         if 'username' in st.session_state:
-            st.experimental_rerun()
+            st.rerun()
 
 st.markdown("---")
 st.subheader("📬 所有貼文 / All Posts")
