@@ -3,6 +3,12 @@ import sqlite3
 from datetime import datetime
 import json
 import os
+import shutil
+
+# 複製一份資料庫備份
+backup_name = f"backup_social_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+shutil.copy("social_app.db", backup_name)
+
 
 # 建立資料庫連線
 conn = sqlite3.connect('social_app.db', check_same_thread=False)
