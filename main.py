@@ -7,7 +7,8 @@ from firebase_admin import credentials, firestore
 
 # 初始化 Firebase
 if not firebase_admin._apps:
-    cred = credentials.Certificate("firebase_key.json")  # 替換為你的金鑰檔案名稱
+    firebase_key_dict = json.loads(st.secrets["FIREBASE_JSON"])
+    cred = credentials.Certificate(firebase_key_dict)  # ✅
     firebase_admin.initialize_app(cred)
 
 # 建立 Firestore 客戶端
