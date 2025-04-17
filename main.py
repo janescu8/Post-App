@@ -107,7 +107,8 @@ for row in rows:
             st.rerun()
 
     # 留言區
-    with col2.expander("💭 留言 / Comments"):
+    comment_count = len(comments)
+    with col2.expander(f"💭 留言 / Comments ({comment_count})"):
         with st.form(f"comment_form_{post_id}"):
             comment_text = st.text_input("留言內容 / Your comment", key=f"comment_input_{post_id}")
             send = st.form_submit_button("送出留言 / Submit")
