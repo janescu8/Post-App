@@ -47,7 +47,8 @@ with st.form("post_form"):
         c.execute("INSERT INTO posts (content, author, timestamp, likes, comments) VALUES (?, ?, ?, ?, ?)",
                   (content, st.session_state.username, timestamp, 0, json.dumps([])))
         conn.commit()
-        st.experimental_rerun()
+        if 'username' in st.session_state:
+            st.experimental_rerun()
 
 st.markdown("---")
 st.subheader("📬 所有貼文 / All Posts")
@@ -70,7 +71,8 @@ for row in rows:
     if col1.button(f"👍 {likes}", key=f"like_{post_id}"):
         c.execute("UPDATE posts SET likes = likes + 1 WHERE id = ?", (post_id,))
         conn.commit()
-        st.experimental_rerun()
+        if 'username' in st.session_state:
+            st.experimental_rerun()
 
     # 留言區
     with col2.expander("💭 留言 / Comments"):
@@ -81,7 +83,8 @@ for row in rows:
                 comments.append({"author": st.session_state.username, "content": comment_text})
                 c.execute("UPDATE posts SET comments = ? WHERE id = ?", (json.dumps(comments), post_id))
                 conn.commit()
-                st.experimental_rerun()
+                if 'username' in st.session_state:
+                    st.experimental_rerun()
 
         for j, cmt in enumerate(comments):
             author_tag = "👑 " + cmt['author'] if cmt['author'] in ADMIN_USERS else cmt['author']
@@ -91,13 +94,15 @@ for row in rows:
                     comments.pop(j)
                     c.execute("UPDATE posts SET comments = ? WHERE id = ?", (json.dumps(comments), post_id))
                     conn.commit()
-                    st.experimental_rerun()
+                    if 'username' in st.session_state:
+                        st.experimental_rerun()
 
     # 刪除貼文（Admin）
     if is_admin:
         if st.button("🗑️ 刪除這則貼文 / Delete this post", key=f"delete_{post_id}"):
             c.execute("DELETE FROM posts WHERE id = ?", (post_id,))
             conn.commit()
-            st.experimental_rerun()
+            if 'username' in st.session_state:
+                st.experimental_rerun()
 
     st.markdown("---")
