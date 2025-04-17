@@ -72,7 +72,7 @@ for row in rows:
         c.execute("UPDATE posts SET likes = likes + 1 WHERE id = ?", (post_id,))
         conn.commit()
         if 'username' in st.session_state:
-            st.experimental_rerun()
+            st.rerun()
 
     # 留言區
     with col2.expander("💭 留言 / Comments"):
@@ -84,7 +84,7 @@ for row in rows:
                 c.execute("UPDATE posts SET comments = ? WHERE id = ?", (json.dumps(comments), post_id))
                 conn.commit()
                 if 'username' in st.session_state:
-                    st.experimental_rerun()
+                    st.rerun()
 
         for j, cmt in enumerate(comments):
             author_tag = "👑 " + cmt['author'] if cmt['author'] in ADMIN_USERS else cmt['author']
@@ -95,7 +95,7 @@ for row in rows:
                     c.execute("UPDATE posts SET comments = ? WHERE id = ?", (json.dumps(comments), post_id))
                     conn.commit()
                     if 'username' in st.session_state:
-                        st.experimental_rerun()
+                        st.rerun()
 
     # 刪除貼文（Admin）
     if is_admin:
@@ -103,6 +103,6 @@ for row in rows:
             c.execute("DELETE FROM posts WHERE id = ?", (post_id,))
             conn.commit()
             if 'username' in st.session_state:
-                st.experimental_rerun()
+                st.rerun()
 
     st.markdown("---")
