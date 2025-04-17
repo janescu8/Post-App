@@ -1,31 +1,17 @@
 import streamlit as st
-import sqlite3
 from datetime import datetime
 import json
 import os
-import shutil
+import firebase_admin
+from firebase_admin import credentials, firestore
 
-# 複製一份資料庫備份
-backup_name = f"backup_social_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-shutil.copy("social_app.db", backup_name)
+# 初始化 Firebase
+if not firebase_admin._apps:
+    cred = credentials.Certificate("firebase_key.json")  # 替換為你的金鑰檔案名稱
+    firebase_admin.initialize_app(cred)
 
-
-# 建立資料庫連線
-conn = sqlite3.connect('social_app.db', check_same_thread=False)
-c = conn.cursor()
-
-# 建立資料表（如果不存在）
-c.execute('''CREATE TABLE IF NOT EXISTS posts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                content TEXT,
-                author TEXT,
-                timestamp TEXT,
-                likes INTEGER,
-                comments TEXT,
-                category TEXT,
-                image_path TEXT
-            )''')
-conn.commit()
+# 建立 Firestore 客戶端
+db = firestore.client()
 
 # 預設 admin 清單
 ADMIN_USERS = ["Arfaa", "Sanny"]
@@ -73,11 +59,17 @@ with st.form("post_form"):
             with open(image_path, "wb") as f:
                 f.write(image.read())
 
-        c.execute("INSERT INTO posts (content, author, timestamp, likes, comments, category, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                  (content, st.session_state.username, timestamp, 0, json.dumps([]), category, image_path))
-        conn.commit()
-        if 'username' in st.session_state:
-            st.rerun()
+        post_ref = db.collection("posts").document()
+        post_ref.set({
+            "content": content,
+            "author": st.session_state.username,
+            "timestamp": timestamp,
+            "likes": 0,
+            "comments": [],
+            "category": category,
+            "image_path": image_path
+        })
+        st.rerun()
 
 st.markdown("---")
 st.subheader("📬 所有貼文 / All Posts")
@@ -85,12 +77,19 @@ st.subheader("📬 所有貼文 / All Posts")
 search_keyword = st.text_input("🔍 搜尋貼文 / Search posts")
 
 # 讀取所有貼文（由新到舊）
-c.execute("SELECT * FROM posts ORDER BY id DESC")
-rows = c.fetchall()
+posts_ref = db.collection("posts").order_by("timestamp", direction=firestore.Query.DESCENDING)
+docs = posts_ref.stream()
 
-for row in rows:
-    post_id, content, author, timestamp, likes, comments, category, image_path = row
-    comments = json.loads(comments)
+for doc in docs:
+    post = doc.to_dict()
+    post_id = doc.id
+    content = post["content"]
+    author = post["author"]
+    timestamp = post["timestamp"]
+    likes = post.get("likes", 0)
+    comments = post.get("comments", [])
+    category = post.get("category", "未分類")
+    image_path = post.get("image_path")
 
     if search_keyword and search_keyword.lower() not in content.lower():
         continue
@@ -107,10 +106,8 @@ for row in rows:
 
     # Like 按鈕
     if col1.button(f"👍 {likes}", key=f"like_{post_id}"):
-        c.execute("UPDATE posts SET likes = likes + 1 WHERE id = ?", (post_id,))
-        conn.commit()
-        if 'username' in st.session_state:
-            st.rerun()
+        db.collection("posts").document(post_id).update({"likes": likes + 1})
+        st.rerun()
 
     # 留言區
     comment_count = len(comments)
@@ -120,10 +117,8 @@ for row in rows:
             send = st.form_submit_button("送出留言 / Submit")
             if send and comment_text:
                 comments.append({"author": st.session_state.username, "content": comment_text})
-                c.execute("UPDATE posts SET comments = ? WHERE id = ?", (json.dumps(comments), post_id))
-                conn.commit()
-                if 'username' in st.session_state:
-                    st.rerun()
+                db.collection("posts").document(post_id).update({"comments": comments})
+                st.rerun()
 
         for j, cmt in enumerate(comments):
             author_tag = "👑 " + cmt['author'] if cmt['author'] in ADMIN_USERS else cmt['author']
@@ -131,19 +126,15 @@ for row in rows:
             if is_admin:
                 if st.button(f"刪除留言 / Delete", key=f"del_comment_{post_id}_{j}"):
                     comments.pop(j)
-                    c.execute("UPDATE posts SET comments = ? WHERE id = ?", (json.dumps(comments), post_id))
-                    conn.commit()
-                    if 'username' in st.session_state:
-                        st.rerun()
+                    db.collection("posts").document(post_id).update({"comments": comments})
+                    st.rerun()
 
     # 刪除貼文（作者本人或 Admin）
     if is_admin or st.session_state.username == author:
         if st.button("🗑️ 刪除這則貼文 / Delete this post", key=f"delete_{post_id}"):
-            c.execute("DELETE FROM posts WHERE id = ?", (post_id,))
-            conn.commit()
+            db.collection("posts").document(post_id).delete()
             if image_path and os.path.exists(image_path):
                 os.remove(image_path)
-            if 'username' in st.session_state:
-                st.rerun()
+            st.rerun()
 
     st.markdown("---")
