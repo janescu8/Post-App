@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 from datetime import datetime
 import json
+import os
 
 # 建立資料庫連線
 conn = sqlite3.connect('social_app.db', check_same_thread=False)
@@ -14,7 +15,9 @@ c.execute('''CREATE TABLE IF NOT EXISTS posts (
                 author TEXT,
                 timestamp TEXT,
                 likes INTEGER,
-                comments TEXT
+                comments TEXT,
+                category TEXT,
+                image_path TEXT
             )''')
 conn.commit()
 
@@ -41,11 +44,22 @@ st.subheader("發佈你的貼文 / Share Your Thoughts")
 # 發文表單
 with st.form("post_form"):
     content = st.text_area("你在想什麼？ / What's on your mind?", max_chars=280)
+    category = st.selectbox("選擇分類 / Select Category", ["生活", "學習", "工作", "娛樂", "其他"])
+    image = st.file_uploader("上傳圖片（選填）/ Upload Image (Optional)", type=["png", "jpg", "jpeg"])
     submitted = st.form_submit_button("發佈 / Post")
+
     if submitted and content:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        c.execute("INSERT INTO posts (content, author, timestamp, likes, comments) VALUES (?, ?, ?, ?, ?)",
-                  (content, st.session_state.username, timestamp, 0, json.dumps([])))
+        image_path = None
+        if image is not None:
+            image_folder = "uploaded_images"
+            os.makedirs(image_folder, exist_ok=True)
+            image_path = os.path.join(image_folder, f"{timestamp.replace(':', '-')}_{image.name}")
+            with open(image_path, "wb") as f:
+                f.write(image.read())
+
+        c.execute("INSERT INTO posts (content, author, timestamp, likes, comments, category, image_path) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                  (content, st.session_state.username, timestamp, 0, json.dumps([]), category, image_path))
         conn.commit()
         if 'username' in st.session_state:
             st.rerun()
@@ -53,18 +67,27 @@ with st.form("post_form"):
 st.markdown("---")
 st.subheader("📬 所有貼文 / All Posts")
 
+search_keyword = st.text_input("🔍 搜尋貼文 / Search posts")
+
 # 讀取所有貼文（由新到舊）
 c.execute("SELECT * FROM posts ORDER BY id DESC")
 rows = c.fetchall()
 
 for row in rows:
-    post_id, content, author, timestamp, likes, comments = row
+    post_id, content, author, timestamp, likes, comments, category, image_path = row
     comments = json.loads(comments)
+
+    if search_keyword and search_keyword.lower() not in content.lower():
+        continue
 
     st.markdown(f"**🗓 {timestamp}**")
     author_label = "👑 " + author if author in ADMIN_USERS else author
-    st.markdown(f"👤 {author_label}")
+    st.markdown(f"👤 {author_label} ｜ 🏷️ {category}")
     st.markdown(f"💬 {content}")
+
+    if image_path and os.path.exists(image_path):
+        st.image(image_path, use_column_width=True)
+
     col1, col2 = st.columns(2)
 
     # Like 按鈕
@@ -102,6 +125,8 @@ for row in rows:
         if st.button("🗑️ 刪除這則貼文 / Delete this post", key=f"delete_{post_id}"):
             c.execute("DELETE FROM posts WHERE id = ?", (post_id,))
             conn.commit()
+            if image_path and os.path.exists(image_path):
+                os.remove(image_path)
             if 'username' in st.session_state:
                 st.rerun()
 
