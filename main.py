@@ -97,8 +97,8 @@ for row in rows:
                     if 'username' in st.session_state:
                         st.rerun()
 
-    # 刪除貼文（Admin）
-    if is_admin:
+    # 刪除貼文（作者本人或 Admin）
+    if is_admin or st.session_state.username == author:
         if st.button("🗑️ 刪除這則貼文 / Delete this post", key=f"delete_{post_id}"):
             c.execute("DELETE FROM posts WHERE id = ?", (post_id,))
             conn.commit()
