@@ -41,10 +41,19 @@ if is_admin:
 st.title("📝 Mini Social Media / 迷你社群平台")
 st.subheader("發佈你的貼文 / Share Your Thoughts")
 
+# 分類清單（中英文對照）
+categories = {
+    "生活 Life": "生活 Life",
+    "學習 Study": "學習 Study",
+    "工作 Work": "工作 Work",
+    "娛樂 Fun": "娛樂 Fun",
+    "其他 Others": "其他 Others"
+}
+
 # 發文表單
 with st.form("post_form"):
     content = st.text_area("你在想什麼？ / What's on your mind?", max_chars=280)
-    category = st.selectbox("選擇分類 / Select Category", ["生活", "學習", "工作", "娛樂", "其他"])
+    category = st.selectbox("選擇分類 / Select Category", list(categories.values()))
     image = st.file_uploader("上傳圖片（選填）/ Upload Image (Optional)", type=["png", "jpg", "jpeg"])
     submitted = st.form_submit_button("發佈 / Post")
 
